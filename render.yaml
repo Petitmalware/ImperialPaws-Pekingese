@@ -17,6 +17,12 @@ services:
         sync: false
       - key: MONGODB_DB
         value: imperialpaws
+      - key: MONGODB_TIMEOUT_MS
+        value: 2500
+      - key: MONGODB_RETRY_COOLDOWN_MS
+        value: 30000
+      - key: DATA_STORE_LOCAL_FALLBACK
+        value: true
       - key: OWNER_USERNAME
         sync: false
       - key: OWNER_PASSWORD

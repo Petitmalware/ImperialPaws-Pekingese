@@ -5,7 +5,11 @@ const { MongoClient } = require("mongodb");
 const DATA_DIR = path.join(__dirname, "../data");
 const MONGODB_URI = process.env.MONGODB_URI || "";
 const MONGODB_DB = process.env.MONGODB_DB || "imperialpaws";
-const MONGODB_TIMEOUT_MS = Number(process.env.MONGODB_TIMEOUT_MS || 10000);
+const MONGODB_TIMEOUT_MS = Number(process.env.MONGODB_TIMEOUT_MS || 2500);
+const MONGODB_RETRY_COOLDOWN_MS = Number(
+  process.env.MONGODB_RETRY_COOLDOWN_MS || 30000
+);
+const LOCAL_FALLBACK_ENABLED = process.env.DATA_STORE_LOCAL_FALLBACK !== "false";
 
 const collections = {
   admins: "admins.json",
@@ -17,9 +21,15 @@ const collections = {
 };
 
 let clientPromise = null;
+let mongoUnavailableUntil = 0;
+const localFallbackCollections = new Set();
 
 function usingMongo() {
   return Boolean(MONGODB_URI);
+}
+
+function canUseLocalFallback(options = {}) {
+  return LOCAL_FALLBACK_ENABLED && options.fallbackToLocal !== false;
 }
 
 function getFile(name) {
@@ -54,6 +64,11 @@ function writeJSONCollection(name, data) {
   fs.writeFileSync(getFile(name), JSON.stringify(data, null, 2));
 }
 
+function writeLocalFallback(name, data) {
+  localFallbackCollections.add(name);
+  writeJSONCollection(name, data);
+}
+
 function scrubMongoMessage(value) {
   return String(value || "").replace(
     /mongodb(\+srv)?:\/\/[^@]+@/gi,
@@ -82,7 +97,42 @@ function describeMongoConfig() {
   }
 }
 
+function mongoCooldownRemainingMs() {
+  return Math.max(0, mongoUnavailableUntil - Date.now());
+}
+
+function isMongoCoolingDown() {
+  return mongoCooldownRemainingMs() > 0;
+}
+
+function createCooldownError() {
+  const err = new Error(
+    `MongoDB retry cooldown active for ${mongoCooldownRemainingMs()}ms`
+  );
+  err.name = "MongoCooldownError";
+  return err;
+}
+
+function markMongoUnavailable(err) {
+  mongoUnavailableUntil = Date.now() + MONGODB_RETRY_COOLDOWN_MS;
+  console.error(
+    `MongoDB unavailable; local fallback active for ${MONGODB_RETRY_COOLDOWN_MS}ms.`,
+    summarizeMongoError(err)
+  );
+}
+
+function logFallback(operation, name, err) {
+  console.error(
+    `MongoDB ${operation} failed for ${name}; using local fallback.`,
+    summarizeMongoError(err)
+  );
+}
+
 async function getDb() {
+  if (isMongoCoolingDown()) {
+    throw createCooldownError();
+  }
+
   if (!clientPromise) {
     const client = new MongoClient(MONGODB_URI, {
       serverSelectionTimeoutMS: MONGODB_TIMEOUT_MS,
@@ -93,6 +143,7 @@ async function getDb() {
     clientPromise = client.connect().catch(async err => {
       clientPromise = null;
       await client.close().catch(() => {});
+      markMongoUnavailable(err);
       throw err;
     });
   }
@@ -108,59 +159,107 @@ async function getCollection(name) {
 
 async function loadCollection(name, options = {}) {
   if (!usingMongo()) return readJSONCollection(name);
+  if (localFallbackCollections.has(name)) return readJSONCollection(name);
+
+  if (isMongoCoolingDown()) {
+    if (!canUseLocalFallback(options)) throw createCooldownError();
+    return readJSONCollection(name);
+  }
 
   try {
     const collection = await getCollection(name);
     const documents = await collection.find({}, { projection: { _id: 0 } }).toArray();
     return documents.map(withoutMongoId);
   } catch (err) {
-    if (!options.fallbackToLocal) throw err;
+    if (!canUseLocalFallback(options)) throw err;
 
-    console.error(
-      `MongoDB read failed for ${name}; using local fallback.`,
-      summarizeMongoError(err)
-    );
+    logFallback("read", name, err);
     return readJSONCollection(name);
   }
 }
 
-async function saveCollection(name, records) {
+async function saveCollection(name, records, options = {}) {
   if (!usingMongo()) {
     writeJSONCollection(name, records);
     return;
   }
 
-  const collection = await getCollection(name);
-  await collection.deleteMany({});
+  if (isMongoCoolingDown()) {
+    if (!canUseLocalFallback(options)) throw createCooldownError();
+    writeLocalFallback(name, records);
+    return;
+  }
 
-  if (records.length) {
-    await collection.insertMany(clone(records));
+  try {
+    const collection = await getCollection(name);
+    await collection.deleteMany({});
+
+    if (records.length) {
+      await collection.insertMany(clone(records));
+    }
+  } catch (err) {
+    if (!canUseLocalFallback(options)) throw err;
+
+    logFallback("write", name, err);
+    writeLocalFallback(name, records);
   }
 }
 
-async function getSettings(defaultSettings) {
+async function getSettings(defaultSettings, options = {}) {
   if (!usingMongo()) {
     const settings = readJSONCollection("settings");
     return Array.isArray(settings) ? defaultSettings : settings;
   }
 
-  const collection = await getCollection("settings");
-  const settings = await collection.findOne({ id: "site-settings" }, { projection: { _id: 0 } });
-  return settings || defaultSettings;
+  if (localFallbackCollections.has("settings")) {
+    const settings = readJSONCollection("settings");
+    return Array.isArray(settings) ? defaultSettings : settings;
+  }
+
+  if (isMongoCoolingDown()) {
+    if (!canUseLocalFallback(options)) throw createCooldownError();
+    const settings = readJSONCollection("settings");
+    return Array.isArray(settings) ? defaultSettings : settings;
+  }
+
+  try {
+    const collection = await getCollection("settings");
+    const settings = await collection.findOne({ id: "site-settings" }, { projection: { _id: 0 } });
+    return settings || defaultSettings;
+  } catch (err) {
+    if (!canUseLocalFallback(options)) throw err;
+
+    logFallback("read", "settings", err);
+    const settings = readJSONCollection("settings");
+    return Array.isArray(settings) ? defaultSettings : settings;
+  }
 }
 
-async function saveSettings(settings) {
+async function saveSettings(settings, options = {}) {
   if (!usingMongo()) {
     writeJSONCollection("settings", settings);
     return;
   }
 
-  const collection = await getCollection("settings");
-  await collection.updateOne(
-    { id: "site-settings" },
-    { $set: { ...clone(settings), id: "site-settings" } },
-    { upsert: true }
-  );
+  if (isMongoCoolingDown()) {
+    if (!canUseLocalFallback(options)) throw createCooldownError();
+    writeLocalFallback("settings", settings);
+    return;
+  }
+
+  try {
+    const collection = await getCollection("settings");
+    await collection.updateOne(
+      { id: "site-settings" },
+      { $set: { ...clone(settings), id: "site-settings" } },
+      { upsert: true }
+    );
+  } catch (err) {
+    if (!canUseLocalFallback(options)) throw err;
+
+    logFallback("write", "settings", err);
+    writeLocalFallback("settings", settings);
+  }
 }
 
 async function closeDataStore() {
