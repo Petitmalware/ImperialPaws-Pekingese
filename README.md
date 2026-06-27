@@ -47,8 +47,10 @@ Health check path: /
 Environment variables:
   NODE_ENV=production
   SESSION_SECRET=<generate a long random value>
-  MONGODB_URI=<MongoDB Atlas connection string>
+  MONGODB_URI=<MongoDB Atlas mongodb+srv:// connection string>
   MONGODB_DB=imperialpaws
+  OWNER_USERNAME=<owner admin username>
+  OWNER_PASSWORD=<strong owner admin password>
   CLOUDINARY_CLOUD_NAME=<Cloudinary cloud name>
   CLOUDINARY_API_KEY=<Cloudinary API key>
   CLOUDINARY_API_SECRET=<Cloudinary API secret>
@@ -74,7 +76,9 @@ uploads for development.
 4. In Network Access, allow access for Render. For a first free launch, the
    practical option is allowing `0.0.0.0/0`; tighten this later if your hosting
    plan gives you fixed outbound IPs.
-5. Copy the connection string and use it as `MONGODB_URI`.
+5. Copy the driver connection string that starts with `mongodb+srv://` and use
+   it as `MONGODB_URI`. URL-encode special password characters before saving it
+   in Render; for example, `$` becomes `%24`.
 
 ### Cloudinary Setup
 
@@ -87,7 +91,7 @@ uploads for development.
 Run this once after creating your MongoDB Atlas database:
 
 ```powershell
-$env:MONGODB_URI="your MongoDB connection string"
+$env:MONGODB_URI="your MongoDB mongodb+srv:// connection string"
 $env:MONGODB_DB="imperialpaws"
 $env:OWNER_USERNAME="your owner username"
 $env:OWNER_PASSWORD="your strong owner password"
@@ -102,13 +106,10 @@ After deployment, log in as owner and use Admins to reset any admin passwords.
 
 ## Admin Login
 
-The seed admin credentials are stored in `server/data/admins.json`.
+For production, set `OWNER_USERNAME` and `OWNER_PASSWORD` in Render. When the
+admin collection is empty, the app creates the owner account from those
+environment variables.
 
-For local development, the included owner account is:
-
-```text
-username: owner
-password: password123
-```
-
-Change these credentials before using the site for real customers.
+For local development, set `OWNER_USERNAME` and `OWNER_PASSWORD` in your shell or
+`.env` before starting the app. The committed JSON seed data is intentionally
+empty so private admin credentials are not stored in GitHub.
