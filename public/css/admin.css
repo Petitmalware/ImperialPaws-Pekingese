@@ -714,6 +714,26 @@ body.admin-body .btn-danger {
   color: #8a2424;
 }
 
+.admin-alert {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.admin-alert.error {
+  border: 1px solid #e0b9b9;
+  background: #fff6f5;
+  color: #8a2424;
+}
+
+.admin-alert.success {
+  border: 1px solid #bad7c2;
+  background: #f1fbf3;
+  color: #245b36;
+}
+
 @media (max-width: 1020px) {
   .admin-grid.four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -733,6 +753,35 @@ body.admin-body .btn-danger {
   .admin-sidebar {
     position: relative;
     min-height: auto;
+    padding: 18px 14px;
+    gap: 16px;
+  }
+
+  .admin-logo,
+  .admin-brand {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .admin-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-menu,
+  .admin-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-menu a,
+  .admin-nav a {
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .admin-sidebar-footer,
+  .admin-logout {
+    margin-top: 0;
   }
 
   .admin-content {
@@ -749,5 +798,56 @@ body.admin-body .btn-danger {
   .admin-grid.four,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .activity-item,
+  .admin-actions,
+  .action-buttons,
+  .status-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status-form,
+  .admin-actions form {
+    width: 100%;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-admin-primary,
+  .btn-create-invoice,
+  .btn-small,
+  .btn-danger,
+  .admin-link-button,
+  .status-form button,
+  .admin-table button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-content {
+    padding: 18px 12px;
+  }
+
+  .admin-card,
+  .admin-panel,
+  .admin-empty-state {
+    padding: 16px;
+  }
+
+  .metric-card strong {
+    font-size: 1.7rem;
+  }
+
+  .admin-table {
+    min-width: 640px;
   }
 }

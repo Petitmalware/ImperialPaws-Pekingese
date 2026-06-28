@@ -7,9 +7,12 @@
     ["puppies", "Puppies", "/admin/puppies"],
     ["testimonials", "Testimonials", "/admin/testimonials"],
     ["invoices", "Invoices", "/admin/invoices"],
-    ["settings", "Site Settings", "/admin/settings"],
-    ["admins", "Admins", "/admin/admins"]
+    ["settings", "Site Settings", "/admin/settings"]
   ];
+
+  if (admin && admin.role === "owner") {
+    links.push(["admins", "Admins", "/admin/admins"]);
+  }
 %>
 
 <aside class="admin-sidebar">

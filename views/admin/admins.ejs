@@ -6,9 +6,17 @@
       <div>
         <p class="admin-eyebrow">Access</p>
         <h1>Admins</h1>
-        <p class="admin-subtitle">Owners can add administrators, reset passwords, and remove non-owner accounts.</p>
+        <p class="admin-subtitle">Owner-only access. Add administrators, reset passwords, and remove non-owner accounts.</p>
       </div>
     </header>
+
+    <% if (typeof error !== "undefined" && error) { %>
+      <div class="admin-alert error"><%= error %></div>
+    <% } %>
+
+    <% if (typeof success !== "undefined" && success) { %>
+      <div class="admin-alert success"><%= success %></div>
+    <% } %>
 
     <section class="admin-grid two">
       <div class="admin-card">
@@ -16,12 +24,17 @@
         <form method="POST" action="/admin/admins/add" class="admin-form">
           <div class="form-group">
             <label>Username</label>
-            <input type="text" name="username" required>
+            <input
+              type="text"
+              name="username"
+              value="<%= values && values.username ? values.username : '' %>"
+              autocomplete="username"
+              required>
           </div>
 
           <div class="form-group">
             <label>Password</label>
-            <input type="password" name="password" minlength="8" required>
+            <input type="password" name="password" minlength="8" autocomplete="new-password" required>
           </div>
 
           <button type="submit" class="btn-primary">Add Admin</button>
@@ -30,7 +43,8 @@
 
       <div class="admin-card">
         <h2>Admin Rules</h2>
-        <p class="admin-muted">Admins can manage puppies, applications, testimonials, invoices, and settings. Only owner accounts can manage other admins.</p>
+        <p class="admin-muted">Admins can manage puppies, applications, testimonials, invoices, and settings.</p>
+        <p class="admin-muted">Only accounts with the owner role can create, remove, or reset other admin accounts.</p>
       </div>
     </section>
 

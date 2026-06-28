@@ -22,6 +22,10 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+function normalizeUsername(value) {
+  return clean(value).toLowerCase();
+}
+
 function normalizeStatus(value) {
   return clean(value).toLowerCase();
 }
@@ -343,17 +347,39 @@ router.post("/settings", requireAdmin, asyncHandler(async (req, res) => {
 
 router.get("/admins", requireOwner, asyncHandler(async (req, res) => {
   const admins = await loadAdmins();
-  res.render("admin/admins", { admins });
+  res.render("admin/admins", {
+    admins,
+    error: req.query.error || "",
+    success: req.query.success || "",
+    values: {
+      username: req.query.username || ""
+    }
+  });
 }));
 
 router.post("/admins/add", requireOwner, asyncHandler(async (req, res) => {
   const username = clean(req.body.username);
   const password = String(req.body.password || "");
-  if (!username || !password) return res.redirect("/admin/admins");
+
+  const redirectWithError = message => {
+    const params = new URLSearchParams({
+      error: message,
+      username
+    });
+    return res.redirect(`/admin/admins?${params.toString()}`);
+  };
+
+  if (!username || !password) {
+    return redirectWithError("Username and password are required.");
+  }
+
+  if (password.length < 8) {
+    return redirectWithError("Password must be at least 8 characters.");
+  }
 
   const admins = await loadAdmins();
-  if (admins.some(a => a.username === username)) {
-    return res.redirect("/admin/admins");
+  if (admins.some(a => normalizeUsername(a.username) === normalizeUsername(username))) {
+    return redirectWithError("An admin with that username already exists.");
   }
 
   admins.push({
@@ -366,7 +392,7 @@ router.post("/admins/add", requireOwner, asyncHandler(async (req, res) => {
   });
 
   await saveAdmins(admins);
-  res.redirect("/admin/admins");
+  res.redirect("/admin/admins?success=Admin%20account%20created.");
 }));
 
 router.post("/admins/:id/delete", requireOwner, asyncHandler(async (req, res) => {
@@ -378,12 +404,14 @@ router.post("/admins/:id/delete", requireOwner, asyncHandler(async (req, res) =>
   }
 
   await saveAdmins(admins.filter(a => a.id !== req.params.id));
-  res.redirect("/admin/admins");
+  res.redirect("/admin/admins?success=Admin%20account%20removed.");
 }));
 
 router.post("/admins/:id/password", requireOwner, asyncHandler(async (req, res) => {
   const password = String(req.body.password || "");
-  if (password.length < 8) return res.redirect("/admin/admins");
+  if (password.length < 8) {
+    return res.redirect("/admin/admins?error=Password%20must%20be%20at%20least%208%20characters.");
+  }
 
   const admins = await loadAdmins();
   const admin = admins.find(a => a.id === req.params.id);
@@ -395,7 +423,7 @@ router.post("/admins/:id/password", requireOwner, asyncHandler(async (req, res) 
     await saveAdmins(admins);
   }
 
-  res.redirect("/admin/admins");
+  res.redirect("/admin/admins?success=Password%20updated.");
 }));
 
 router.get("/puppies", requireAdmin, asyncHandler(async (req, res) => {

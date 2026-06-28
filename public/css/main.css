@@ -103,6 +103,43 @@ p {
   text-align: center;
 }
 
+img {
+  max-width: 100%;
+}
+
+input,
+textarea,
+select {
+  max-width: 100%;
+  font-size: 16px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+.btn-primary,
+.btn-secondary,
+.text-link {
+  touch-action: manipulation;
+}
+
+@media (hover: none) {
+  .btn-primary:hover,
+  .btn-secondary:hover {
+    transform: none;
+  }
+}
+
 /* ===============================
    FIXED HEADER OFFSET
    =============================== */
