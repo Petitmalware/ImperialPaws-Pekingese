@@ -85,6 +85,26 @@ const loadTestimonials = () =>
   loadCollection("testimonials", { fallbackToLocal: true });
 const saveTestimonials = data => saveCollection("testimonials", data);
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function sameBuyerApplication(application, puppyId, values) {
+  if (application.puppyId !== puppyId) return false;
+
+  const existingEmail = normalizeEmail(application.email);
+  const nextEmail = normalizeEmail(values.email);
+  if (existingEmail && nextEmail && existingEmail === nextEmail) return true;
+
+  const existingPhone = normalizePhone(application.phone);
+  const nextPhone = normalizePhone(values.phone);
+  return Boolean(existingPhone && nextPhone && existingPhone === nextPhone);
+}
+
 function isApprovedTestimonial(testimonial) {
   return (
     testimonial.approved === true ||
@@ -197,10 +217,8 @@ app.post("/apply", asyncHandler(async (req, res) => {
     });
   }
 
-  const duplicate = applications.find(
-    application =>
-      application.puppyId === puppy.id &&
-      String(application.email || "").toLowerCase() === values.email.toLowerCase()
+  const duplicate = applications.find(application =>
+    sameBuyerApplication(application, puppy.id, values)
   );
 
   if (duplicate) {

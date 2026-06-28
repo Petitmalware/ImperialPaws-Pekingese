@@ -107,6 +107,7 @@ async function main() {
       MONGODB_DB: "imperialpaws",
       MONGODB_TIMEOUT_MS: "400",
       MONGODB_RETRY_COOLDOWN_MS: "10000",
+      DATA_STORE_LOCAL_READ_FALLBACK: "true",
       DATA_STORE_LOCAL_FALLBACK: "true",
       CLOUDINARY_CLOUD_NAME: "",
       CLOUDINARY_API_KEY: "",

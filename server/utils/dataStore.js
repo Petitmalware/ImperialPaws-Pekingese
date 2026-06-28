@@ -12,7 +12,9 @@ const MONGODB_RETRY_COOLDOWN_MS = Number(
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const ALLOW_LOCAL_PRODUCTION =
   process.env.DATA_STORE_ALLOW_LOCAL_PRODUCTION === "true";
-const LOCAL_FALLBACK_ENABLED =
+const LOCAL_READ_FALLBACK_ENABLED =
+  process.env.DATA_STORE_LOCAL_READ_FALLBACK !== "false";
+const LOCAL_WRITE_FALLBACK_ENABLED =
   (!IS_PRODUCTION || ALLOW_LOCAL_PRODUCTION) &&
   process.env.DATA_STORE_LOCAL_FALLBACK !== "false";
 const PRODUCTION_REQUIRES_MONGO =
@@ -36,7 +38,11 @@ function usingMongo() {
 }
 
 function canUseLocalFallback(options = {}) {
-  return LOCAL_FALLBACK_ENABLED && options.fallbackToLocal !== false;
+  return LOCAL_WRITE_FALLBACK_ENABLED && options.fallbackToLocal !== false;
+}
+
+function canUseLocalReadFallback(options = {}) {
+  return LOCAL_READ_FALLBACK_ENABLED && options.fallbackToLocal !== false;
 }
 
 function createPersistentStoreRequiredError(operation) {
@@ -129,18 +135,20 @@ function getDataStoreStatus() {
   } else if (!usingMongo()) {
     mode = "local-json";
   } else if (fallbackCollections.length || cooldownRemainingMs > 0) {
-    mode = LOCAL_FALLBACK_ENABLED ? "local-fallback" : "mongo-unavailable";
+    mode = LOCAL_WRITE_FALLBACK_ENABLED ? "local-fallback" : "mongo-unavailable";
   }
 
   return {
     cooldownRemainingMs,
     fallbackCollections,
-    fallbackEnabled: LOCAL_FALLBACK_ENABLED,
+    fallbackEnabled: LOCAL_WRITE_FALLBACK_ENABLED,
     isProduction: IS_PRODUCTION,
     mode,
     mongoConfigured: usingMongo(),
     mongoDatabase: MONGODB_DB,
-    productionRequiresMongo: PRODUCTION_REQUIRES_MONGO
+    productionRequiresMongo: PRODUCTION_REQUIRES_MONGO,
+    readFallbackEnabled: LOCAL_READ_FALLBACK_ENABLED,
+    writeFallbackEnabled: LOCAL_WRITE_FALLBACK_ENABLED
   };
 }
 
@@ -164,7 +172,7 @@ function markMongoUnavailable(err) {
   mongoUnavailableUntil = Date.now() + MONGODB_RETRY_COOLDOWN_MS;
   console.error(
     `MongoDB unavailable; ${
-      LOCAL_FALLBACK_ENABLED ? "local fallback active" : "local fallback disabled"
+      LOCAL_WRITE_FALLBACK_ENABLED ? "local write fallback active" : "local write fallback disabled"
     } for ${MONGODB_RETRY_COOLDOWN_MS}ms.`,
     summarizeMongoError(err)
   );
@@ -208,13 +216,15 @@ async function getCollection(name) {
 
 async function loadCollection(name, options = {}) {
   if (!usingMongo()) {
-    assertMongoAvailableForProduction(`read for ${name}`);
+    if (!canUseLocalReadFallback(options)) {
+      assertMongoAvailableForProduction(`read for ${name}`);
+    }
     return readJSONCollection(name);
   }
   if (localFallbackCollections.has(name)) return readJSONCollection(name);
 
   if (isMongoCoolingDown()) {
-    if (!canUseLocalFallback(options)) throw createCooldownError();
+    if (!canUseLocalReadFallback(options)) throw createCooldownError();
     return readJSONCollection(name);
   }
 
@@ -223,7 +233,7 @@ async function loadCollection(name, options = {}) {
     const documents = await collection.find({}, { projection: { _id: 0 } }).toArray();
     return documents.map(withoutMongoId);
   } catch (err) {
-    if (!canUseLocalFallback(options)) throw err;
+    if (!canUseLocalReadFallback(options)) throw err;
 
     logFallback("read", name, err);
     return readJSONCollection(name);
@@ -260,7 +270,9 @@ async function saveCollection(name, records, options = {}) {
 
 async function getSettings(defaultSettings, options = {}) {
   if (!usingMongo()) {
-    assertMongoAvailableForProduction("settings read");
+    if (!canUseLocalReadFallback(options)) {
+      assertMongoAvailableForProduction("settings read");
+    }
     const settings = readJSONCollection("settings");
     return Array.isArray(settings) ? defaultSettings : settings;
   }
@@ -271,7 +283,7 @@ async function getSettings(defaultSettings, options = {}) {
   }
 
   if (isMongoCoolingDown()) {
-    if (!canUseLocalFallback(options)) throw createCooldownError();
+    if (!canUseLocalReadFallback(options)) throw createCooldownError();
     const settings = readJSONCollection("settings");
     return Array.isArray(settings) ? defaultSettings : settings;
   }
@@ -281,7 +293,7 @@ async function getSettings(defaultSettings, options = {}) {
     const settings = await collection.findOne({ id: "site-settings" }, { projection: { _id: 0 } });
     return settings || defaultSettings;
   } catch (err) {
-    if (!canUseLocalFallback(options)) throw err;
+    if (!canUseLocalReadFallback(options)) throw err;
 
     logFallback("read", "settings", err);
     const settings = readJSONCollection("settings");

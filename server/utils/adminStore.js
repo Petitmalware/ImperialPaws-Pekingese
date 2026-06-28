@@ -1,4 +1,8 @@
-const { loadCollection, saveCollection } = require("./dataStore");
+const {
+  loadCollection,
+  saveCollection,
+  summarizeMongoError
+} = require("./dataStore");
 const { hashPassword } = require("./passwords");
 
 async function buildOwnerFromEnv() {
@@ -24,7 +28,15 @@ async function loadAdmins() {
   const owner = await buildOwnerFromEnv();
   if (!owner) return admins;
 
-  await saveCollection("admins", [owner]);
+  try {
+    await saveCollection("admins", [owner]);
+  } catch (err) {
+    console.error(
+      "Owner admin could not be persisted; using transient environment owner.",
+      summarizeMongoError(err)
+    );
+  }
+
   return [owner];
 }
 

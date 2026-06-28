@@ -21,6 +21,8 @@ services:
         value: 2500
       - key: MONGODB_RETRY_COOLDOWN_MS
         value: 30000
+      - key: DATA_STORE_LOCAL_READ_FALLBACK
+        value: true
       - key: DATA_STORE_LOCAL_FALLBACK
         value: false
       - key: IMAGE_STORAGE_LOCAL_FALLBACK

@@ -98,6 +98,7 @@ async function main() {
       NODE_ENV: "test",
       PORT: String(port),
       MONGODB_URI: "",
+      DATA_STORE_LOCAL_READ_FALLBACK: "true",
       DATA_STORE_LOCAL_FALLBACK: "true",
       IMAGE_STORAGE_LOCAL_FALLBACK: "true",
       CLOUDINARY_CLOUD_NAME: "",
@@ -297,6 +298,27 @@ async function main() {
   let application = readJSON(applicationsFile).find(item => item.email === "buyer@example.com");
   assert(application, "Application should be stored.");
   await assertRoute(`/track/result?code=${encodeURIComponent(application.id)}`, 200);
+
+  const duplicateApply = await postForm("/apply", {
+    puppyId: puppy.id,
+    name: "Test Buyer Duplicate",
+    email: "another-buyer@example.com",
+    phone: "555-1000",
+    location: "Test City",
+    message: "Duplicate temporary application"
+  });
+  assert(duplicateApply.status === 302, "Duplicate application should redirect.");
+  assert(
+    duplicateApply.headers.get("location").includes(application.id),
+    "Duplicate application should reuse the existing tracking code."
+  );
+  const duplicateApplications = readJSON(applicationsFile).filter(
+    item => item.puppyId === puppy.id && item.phone === "555-1000"
+  );
+  assert(
+    duplicateApplications.length === 1,
+    "Duplicate application should not create a second application for the same puppy and buyer."
+  );
 
   const approve = await postForm(
     `/admin/applications/${application.id}/status`,

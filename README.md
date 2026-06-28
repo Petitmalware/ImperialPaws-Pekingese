@@ -52,6 +52,7 @@ Environment variables:
   MONGODB_DB=imperialpaws
   MONGODB_TIMEOUT_MS=2500
   MONGODB_RETRY_COOLDOWN_MS=30000
+  DATA_STORE_LOCAL_READ_FALLBACK=true
   DATA_STORE_LOCAL_FALLBACK=false
   IMAGE_STORAGE_LOCAL_FALLBACK=false
   OWNER_USERNAME=<owner admin username>
@@ -66,11 +67,14 @@ Environment variables:
 Render is pinned to Node `20.19.0` in `render.yaml`, `.node-version`, and
 `package.json` so MongoDB Atlas connections use a stable Node LTS runtime.
 
-In production, local JSON and local image upload fallbacks are disabled by
+In production, local JSON writes and local image upload fallbacks are disabled by
 default. This prevents the app from pretending data was saved to Render's
 temporary filesystem and then losing it after a restart. If MongoDB or
 Cloudinary is missing, production save/upload actions fail with a storage
 configuration message instead of writing unsafe temporary data.
+
+`DATA_STORE_LOCAL_READ_FALLBACK=true` keeps public pages reachable if MongoDB is
+temporarily unavailable, but it does not allow unsafe local writes.
 
 The app now uses production storage when environment variables are present:
 

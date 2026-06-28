@@ -3,6 +3,7 @@ const path = require("path");
 
 process.env.NODE_ENV = "production";
 process.env.MONGODB_URI = "";
+process.env.DATA_STORE_LOCAL_READ_FALLBACK = "true";
 process.env.DATA_STORE_LOCAL_FALLBACK = "true";
 process.env.IMAGE_STORAGE_LOCAL_FALLBACK = "true";
 delete process.env.DATA_STORE_ALLOW_LOCAL_PRODUCTION;
@@ -33,7 +34,11 @@ async function expectCode(promise, code, message) {
 }
 
 async function main() {
-  const { getDataStoreStatus, saveCollection } = require("../server/utils/dataStore");
+  const {
+    getDataStoreStatus,
+    loadCollection,
+    saveCollection
+  } = require("../server/utils/dataStore");
   const {
     getImageStorageStatus,
     savePuppyImage
@@ -42,6 +47,10 @@ async function main() {
   const dataStatus = getDataStoreStatus();
   assert(dataStatus.mode === "missing-mongo", "Production without Mongo should report missing Mongo.");
   assert(dataStatus.fallbackEnabled === false, "Production data fallback should be disabled.");
+  assert(dataStatus.readFallbackEnabled === true, "Production read fallback should keep pages reachable.");
+
+  const puppies = await loadCollection("puppies");
+  assert(Array.isArray(puppies), "Production read fallback should read local JSON safely.");
 
   await expectCode(
     saveCollection("puppies", [{ id: "unsafe-production-write" }]),
