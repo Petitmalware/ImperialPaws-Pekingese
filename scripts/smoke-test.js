@@ -120,7 +120,11 @@ async function main() {
 
   await waitForServer();
 
-  await assertRoute("/", 200);
+  const homePage = await assertRoute("/", 200);
+  const homeHtml = await homePage.text();
+  assert(!homeHtml.includes("font-awesome"), "Homepage should not load unused Font Awesome.");
+  assert(!homeHtml.includes("scroll-reveal"), "Homepage should not load delayed reveal script.");
+  assert(!homeHtml.includes("â"), "Homepage should not contain mojibake characters.");
   await assertRoute("/puppies", 200);
   await assertRoute("/testimonials", 200);
   await assertRoute("/testimonials/submit", 200);

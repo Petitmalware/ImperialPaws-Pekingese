@@ -14,22 +14,27 @@
 <% if (isAdminPage) { %>
   <link rel="stylesheet" href="/css/admin.css">
 <% } else { %>
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-  />
-  <link rel="stylesheet" href="/css/invoice.css">
-  <link rel="stylesheet" href="/css/puppies.css">
-  <link rel="stylesheet" href="/css/puppy-details.css">
-  <link rel="stylesheet" href="/css/home-featured.css">
-  <link rel="stylesheet" href="/css/testimonials-lux.css">
-  <link rel="stylesheet" href="/css/header.css">
-  <link rel="stylesheet" href="/css/footer.css">
-  <link rel="stylesheet" href="/css/main.css">
-  <link rel="stylesheet" href="/css/about.css">
-  <link rel="stylesheet" href="/css/home-index.css">
-  <link rel="stylesheet" href="/css/adoption-process.css">
-  <link rel="stylesheet" href="/css/sub-pages.css">
+  <%
+    const routePath = typeof currentPath !== "undefined" ? currentPath : "";
+    const publicCss = ["/css/main.css", "/css/header.css", "/css/footer.css", "/css/sub-pages.css"];
+
+    if (routePath === "/") {
+      publicCss.push("/css/home-index.css", "/css/home-featured.css", "/css/testimonials-lux.css");
+    } else if (routePath === "/puppies") {
+      publicCss.push("/css/puppies.css");
+    } else if (routePath.startsWith("/puppies/")) {
+      publicCss.push("/css/puppy-details.css");
+    } else if (routePath.startsWith("/testimonials")) {
+      publicCss.push("/css/testimonials-lux.css");
+    } else if (routePath === "/about") {
+      publicCss.push("/css/about.css");
+    } else if (routePath === "/adoption-process") {
+      publicCss.push("/css/adoption-process.css");
+    }
+  %>
+  <% publicCss.forEach(cssFile => { %>
+    <link rel="stylesheet" href="<%= cssFile %>">
+  <% }) %>
 <% } %>
 
 
@@ -53,32 +58,13 @@
     <%- include("../partials/footer") %>
   <% } %>
 
-
-  <script>
-  function setMainImage(src, el) {
-    const main = document.getElementById("mainPuppyImage");
-    if (!main) return;
-
-    main.style.opacity = 0;
-    setTimeout(() => {
-      main.src = src;
-      main.style.opacity = 1;
-    }, 150);
-
-    document.querySelectorAll(".lux-thumb").forEach(t => {
-      t.classList.remove("active");
-    });
-
-    el.classList.add("active");
-  }
-</script>
-
-
-
-<script src="/js/header.js"></script>
-<script src="/js/site.js"></script>
-
-<script src="/js/scroll-reveal.js"></script>
+<% if (!isAdminPage) { %>
+  <script src="/js/header.js" defer></script>
+  <script src="/js/site.js" defer></script>
+  <% if (typeof currentPath !== "undefined" && currentPath.startsWith("/puppies/")) { %>
+    <script src="/js/puppy-gallery.js" defer></script>
+  <% } %>
+<% } %>
 
 </body>
 </html>

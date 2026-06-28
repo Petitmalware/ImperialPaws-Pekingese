@@ -24,7 +24,9 @@
             <img
               id="mainPuppyImage"
               src="<%= puppy.images.find(i => i.isCover)?.path || puppy.images[0].path %>"
-              alt="<%= puppy.name %>">
+              alt="<%= puppy.name %>"
+              decoding="async"
+              fetchpriority="high">
           <% } else { %>
             <div class="lux-image-placeholder">No Image Available</div>
           <% } %>
@@ -36,7 +38,10 @@
               <img
                 src="<%= img.path %>"
                 class="lux-thumb"
-                onclick="document.getElementById('mainPuppyImage').src='<%= img.path %>'">
+                data-full-image="<%= img.path %>"
+                alt="<%= puppy.name %> gallery image"
+                loading="lazy"
+                decoding="async">
             <% }) %>
           </div>
         <% } %>

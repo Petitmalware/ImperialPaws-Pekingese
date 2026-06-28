@@ -23,6 +23,9 @@ const trackRoutes = require("./routes/track");
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || "imperialpaws-dev-secret";
+const STATIC_MAX_AGE = process.env.NODE_ENV === "production" ? "7d" : 0;
+
+app.disable("x-powered-by");
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "../views"));
@@ -32,6 +35,14 @@ app.set("layout", "layouts/main");
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 
 app.get("/healthz", (req, res) => {
   res.status(200).json({ ok: true });
@@ -68,8 +79,17 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
-app.use(express.static(path.join(__dirname, "../public")));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../public/uploads"), {
+    etag: true,
+    maxAge: STATIC_MAX_AGE
+  })
+);
+app.use(express.static(path.join(__dirname, "../public"), {
+  etag: true,
+  maxAge: STATIC_MAX_AGE
+}));
 
 app.use(applicantInvoiceRoutes);
 app.use("/admin", adminRoutes);
